@@ -1,6 +1,6 @@
 # Ollama Tools Chat - Chatbot with Ollama
 
-This project implements an autonomous chat system using Ollama cappable of running LLMs with tools.
+Ollama chat app cappable of running LLMs with tools.
 
 ## 📋 Description
 
