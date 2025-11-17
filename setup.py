@@ -9,7 +9,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "ollama-tools_chat=aiss_ollama_tools_chat.run:main",
+            "ollama-tools-chat=aiss_ollama_tools_chat.run:main",
         ],
     },
     author="Miguel Ángel Cueto Gómez-Morán",
