@@ -8,8 +8,20 @@ The project allows creating a chat with MCP endpoint tools enabled.
 
 ## 🚀 Features
 
-OpenAPI server support.
-Raw tools support. (currently, requires editing source code)
+- Real-time interaction with local models
+- Conversation history saved in JSON format
+- Support for multiple Ollama models
+- OpenAPI server support. (tested with FastMCP)
+- Raw tools support. (currently, adding new raw tools requires to edit source code)
+- Exit commands (`quit` or `exit`)
+  - When used, the app makes a backup at "./logs/date_time" located at run path.
+- Save and restore commands (`save`, `save:`, `restore`, `restore:`, `rewind` and `rewind:`)
+  - `save` - Stores a conversational context file named "context.json" at run path.
+  - `save:` - Stores a conversational context file at path inidicated next, related to run path.
+  - `restore` - Restores a conversational context file at "context.json" located at run path.
+  - `restore:` - Restores a conversational context file at path inidicated next, related to run path.
+  - `rewind` - Goes back to a previous turn.
+  - `rewind:` - Goes back an ammount of turns indicated next.
      
 ## 🛠 Requirements
 
@@ -30,42 +42,43 @@ Raw tools support. (currently, requires editing source code)
 2. Clone the repository:
    ```bash
    git clone <your-repository>
-   cd ollamaChat
    ```
 
-3. Install dependencies:
+3. Install package using:
    ```bash
-   pip install -r requirements.txt
-   ```
-
-4. Install package using:
-   ```bash
-   pip install .
+   pip install ./OllamaToolsChat
    ```
 
 ## ▶️ Usage
 
 Run the program with:
 ```bash
-ollama-tools-chat <model> <prompt> <maxLength> <mcpServerAddress> <mcpServerPassword>
+ollama-tools-chat <model> <prompt> [options]
+```
+
+Where options are:
+--maxLength or -l: Maximum context length (default: 20)
+--userName or -u: User name (default: "User")  
+--prevContext or -c: Path to previous chat context file (default: None)
+--mcpServerAddress or -s: MCP server address (format: `http://-.-.-.-:-`)
+--mcpServerPassword or -p: MCP server password
 ```
 
 Example:
 ```bash
-ollama-tools-chat gemma3:12b-it-q8_0 ./sysPrompt.txt 10 127.0.0.1:8100 password123
+ollama-tools-chat gemma3:12b-it-q8_0 ./sysPrompt.txt 10 http://127.0.0.1:8100 password123
 ```
 
 ## 📁 Project Structure
 
 ```
 .
-├── aiss_ollama_chat_autonomous/
+├── aiss_ollama_tools_chat/
 │   ├── __init__.py
 │   ├── chat.py
 │   └── run.py
 ├── run.sh
 ├── setup.py
-├── sysPrompt.txt
 ├── LICENSE
 └── README.md
 ```

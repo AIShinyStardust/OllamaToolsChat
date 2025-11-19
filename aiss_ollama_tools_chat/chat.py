@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""ollama_mcp_chat.py - Chat interactivo con tools MCP en una clase Chat"""
 from openai import OpenAI
+from pathlib import Path
 import requests
 import json
 import os
@@ -8,31 +8,42 @@ import datetime
 
 
 class Chat:
-    def __init__(self, model:str, sysPrompt:str, maxChatLenght:int, mcp_url:str=None, mcp_token:str=None):
+
+    @staticmethod
+    def strMsg(eventType:str, content:str) -> dict[str, str]:
+        return {
+            'timestamp': datetime.datetime.now().isoformat(),
+            'role': eventType,
+            'content': content
+        }
+
+    def __init__(self, model:str, sysPrompt:str, maxChatLength:int, userName:str="User", prevContext:str=None, mcpUrl:str=None, mcpToken:str=None):
         self.model = model
         self.sysPrompt = ""
-        self.mcp_url = mcp_url
-        self.mcp_token = mcp_token
+        self.userName = userName
+        self.mcpUrl = mcpUrl
+        self.mcpToken = mcpToken
         self.client = OpenAI(
             base_url="http://localhost:11434/v1",
             api_key="ollama"
         )
         self.tools = []
-        self.tools = self.load_mcp_tools()
+        self.tools = self.loadMcpTools()
         self.chatHistory = []
         self.sysPrompt:str = ""
         self.extraContext:str = ""
         self.contextualData:str = ""
-        self.maxChatLenght:int = maxChatLenght
+        self.maxChatLength:int = maxChatLength
         self.localTools = {
             "cambiar_system_prompt": self.cambiarSystemPrompt,
             "almacenar_datos_contextuales": self.almacenarDatosContextuales
         }
         with open(sysPrompt, "r") as archivo:
             self.sysPrompt = archivo.read()
+        if prevContext:
+            self.deserializeContext(prevContext)
 
-    def resolve_ref(self, ref, openapi_spec):
-        """Resuelve referencias $ref en el schema"""
+    def resolveRef(self, ref, openapi_spec):
         if not ref.startswith("#/"):
             return None
         
@@ -43,8 +54,7 @@ class Chat:
         
         return current
 
-    def openapi_to_openai_tools(self, openapi_spec):
-        """Convierte OpenAPI a formato OpenAI tools"""
+    def openapiToOpenaiTools(self, openapi_spec):
         tools = []
         
         for path, methods in openapi_spec.get("paths", {}).items():
@@ -60,12 +70,11 @@ class Chat:
                     "properties": {},
                     "required": []
                 }
-                # Request body
                 request_body = details.get("requestBody", {})
                 if request_body:
                     schema = request_body.get("content", {}).get("application/json", {}).get("schema", {})
-                    if "$ref" in schema: # Resolver $ref si existe
-                        schema = self.resolve_ref(schema["$ref"], openapi_spec)
+                    if "$ref" in schema:
+                        schema = self.resolveRef(schema["$ref"], openapi_spec)
                     if "properties" in schema:
                         parameters["properties"] = schema["properties"]
                     if "required" in schema:
@@ -81,13 +90,12 @@ class Chat:
                 })
         return tools
 
-    def load_mcp_tools(self):
-        """Carga las herramientas desde el servidor MCP"""
+    def loadMcpTools(self):
         tools = []
-        if self.mcp_url and self.mcp_token:
+        if self.mcpUrl and self.mcpToken:
             try:
-                openapi_spec = requests.get(f"{self.mcp_url}/openapi.json").json()
-                tools = self.openapi_to_openai_tools(openapi_spec)
+                openApiSpec = requests.get(f"{self.mcpUrl}/openapi.json").json()
+                tools = self.openapiToOpenaiTools(openApiSpec)
             except Exception as e:
                 print(f"Error cargando herramientas MCP: {e}")
                 return
@@ -130,74 +138,51 @@ class Chat:
         return tools
 
     def cambiarSystemPrompt(self, args):
-        """
-        Cambia el system prompt del chat
-        
-        """
         nuevo_prompt = args.get("sysPrompt", "")
         self.sysPrompt = nuevo_prompt
         return f"System prompt actualizado ({len(nuevo_prompt)} caracteres)"
 
     def almacenarDatosContextuales(self, args):
-        """
-        Almacena datos contextuales que persisten en la conversación
-        
-        """
         data = args.get("data", "")
         self.contextualData = data
         return f"Datos almacenados. Total: {len(self.contextualData)} caracteres"
 
-    def execute_mcp_tool(self, tool_name, arguments):
-        """Ejecuta una herramienta MCP"""
-        if tool_name in self.localTools:
-            return self.localTools[tool_name](arguments)
-
-        # Limpiar el operationId para obtener la ruta correcta
-        path = tool_name.replace("tool_", "").replace("_post", "")
-        
-        # Aquí ya tienes el path correcto, así que usa el path, no el tool_name
+    def execute_mcp_tool(self, toolName, arguments):
+        if toolName in self.localTools:
+            return self.localTools[toolName](arguments)
+        path = toolName.replace("tool_", "").replace("_post", "")
         headers = {"Content-Type": "application/json"}
-        if self.mcp_token:
-            headers["Authorization"] = f"Bearer {self.mcp_token}"
+        if self.mcpToken:
+            headers["Authorization"] = f"Bearer {self.mcpToken}"
         
-        print(f"[DEBUG] Ejecutando herramienta (path): {path}")
-        print(f"[DEBUG] URL completa: {self.mcp_url}{path}")
+        # print(f"[DEBUG] Ejecutando herramienta (path): {path}")
+        # print(f"[DEBUG] URL completa: {self.mcpUrl}{path}")
         
         try:
-            response = requests.post(f"{self.mcp_url}{path}", json=arguments, headers=headers, timeout=5)
+            response = requests.post(f"{self.mcpUrl}{path}", json=arguments, headers=headers, timeout=5)
             response.raise_for_status()
-            print(f"[DEBUG] Full response: {response}")
-            print(f"[DEBUG] Response status: {response.status_code}")
-            print(f"[DEBUG] Response headers: {response.headers}")
-            print(f"[DEBUG] Response text: {response.text[:200]}...")  # Solo los primeros 200 caracteres
-            
-            # Intentar parsear como JSON
+            # print(f"[DEBUG] Full response: {response}")
+            # print(f"[DEBUG] Response status: {response.status_code}")
+            # print(f"[DEBUG] Response headers: {response.headers}")
+            # print(f"[DEBUG] Response text: {response.text[:200]}...")
             try:
                 data = response.json()
                 if isinstance(data, dict) and "result" in data:
-                    return str(data["result"]) # Si es un dict con "result", extraerlo
+                    return str(data["result"])
                 elif isinstance(data, dict):
-                    return str(data) # Si es un dict sin "result", devolver todo
+                    return str(data)
                 else:
-                    return str(data) # Si es otro tipo (int, str, list), devolver directo
+                    return str(data)
             except:
-                return response.text # Si no es JSON válido, devolver texto
+                return response.text
         except Exception as e:
             return f"Error ejecutando tool: {str(e)}"
 
-    @staticmethod
-    def strMsg(event_type:str, content:str) -> dict[str, str]:
-        return {
-            'timestamp': datetime.datetime.now().isoformat(),
-            'role': event_type,
-            'content': content
-        }
-    
     def doChat(self, prompt:str, extraMsg:str=None):
         if extraMsg:
             self.chatHistory.append(Chat.strMsg("user", extraMsg))
         self.chatHistory.append(Chat.strMsg("user", prompt))
-        messages = [{"role": "system", "content": self.sysPrompt}] + self.chatHistory[-self.maxChatLenght:]
+        messages = [{"role": "system", "content": self.sysPrompt}] + self.chatHistory[-self.maxChatLength:]
         while True:
             response = self.client.chat.completions.create(model=self.model, messages=messages, tools=self.tools, stream=False)
             message = response.choices[0].message
@@ -221,12 +206,89 @@ class Chat:
                 self.chatHistory.append({ "role": "assistant", "content": message.content})
                 continue
             else:
-                # Sin tool_calls, imprimir respuesta final
                 self.chatHistory.append({ "role": "assistant", "content": message.content})
                 return message.content
 
 
-    def printToFile(self, folder:str = None):
+    def getChatHistory(self) -> str:
+        return self.chatHistory
+    
+    def getChatHistoryFormatted(self) -> str:
+        formattedStrings = []
+        i = 0
+    
+        for dictionary in self.chatHistory:
+            turnNum = (i // 2) * 2
+            role = dictionary.get("role", "")
+            content = dictionary.get("content", "")
+            if role == "user":
+                formattedString = f"Turn {turnNum} - {self.userName}: {content}"
+            else:
+                formattedString = f"Turn {turnNum} - {self.model}: {content}"
+            formattedStrings.append(formattedString)
+            i += 1
+        return "\n".join(formattedStrings)
+
+    def rewind(self, turns=1) -> str:
+        if turns < 0:
+            raise ValueError(f"Rewind parameter `turns` cannot be a negative value. Request: {turns}")
+        self.chatHistory = self.chatHistory[:-min(turns*2, len(self.chatHistory))]
+
+    def _safeSerialize(self, path, data) -> None:
+        try:
+            fullPath = Path(path)
+            fullPath.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as file:
+                file.write(json.dumps(data, indent=2, ensure_ascii=False))
+        except FileNotFoundError:
+            raise FileNotFoundError(f"The file '{path}' does not exist")
+        except PermissionError:
+            raise PermissionError(f"You don't have permissions to access '{path}'")
+        except UnicodeDecodeError:
+            raise UnicodeDecodeError(f"Encoding error in '{path}'")
+        except Exception as e:
+            raise Exception(f"Unknown error: {e}")
+        return None
+
+    def _safeDeserialize(self, path):
+        try:
+            with open(path, 'r', encoding='utf-8') as file:
+                return json.load(file)
+        except FileNotFoundError:
+            raise FileNotFoundError(f"The file '{path}' does not exist")
+        except PermissionError:
+            raise PermissionError(f"You don't have permissions to access '{path}'")
+        except UnicodeDecodeError:
+            raise UnicodeDecodeError(f"Encoding error in '{path}'")
+        except Exception as e:
+            raise Exception(f"Unknown error: {e}")
+        return None
+
+    def serializeContext(self, path):
+        self._safeSerialize(path, self.chatHistory)
+    
+    def deserializeContext(self, path):
+        self.chatHistory = self._safeDeserialize(path)
+
+    def serializeParams(self, path):
+        self._safeSerialize(path, {
+                "app":"aiss_ollama_tools_chat",
+                "model":self.model,
+                "maxChatLength":self.maxChatLength,
+                "userName":self.userName,
+                "mcpUrl":self.mcpUrl,
+                "sysPrompt":self.sysPrompt
+            })
+
+    def deserializeParams(self, path):
+        data = self._safeDeserialize(path)
+        self.model = data["model"]
+        self.maxChatLength = data["maxChatLength"]
+        self.userName = data["userName"]
+        self.sysPrompt = data["sysPrompt"]
+    
+
+    def makeBackup(self, folder:str = None):
         logsFolder = "./logs"
         os.makedirs(logsFolder, exist_ok=True)
         if folder:
@@ -236,20 +298,8 @@ class Chat:
         fullPath = os.path.join(logsFolder, folderName)
         os.makedirs(fullPath, exist_ok=True)
         print(f"Folder '{fullPath}' Created")
-        path = os.path.join(fullPath, "chat.log")
-        with open(path, "w") as archivo:
-            archivo.write(json.dumps(self.chatHistory, indent=2, ensure_ascii=False))
-        path = os.path.join(fullPath, "params.log")
-        with open(path, "w", encoding="utf-8") as archivo:
-            archivo.write(f"""Model:
-{self.model}
-Max chat lenght:
-{self.maxChatLenght}
-System prompt:
-{self.sysPrompt}
-Extra context:
-{self.extraContext}
-""")
+        self.serializeContext(os.path.join(fullPath, "chat.json"))
+        self.serializeParams(os.path.join(fullPath, "params.log"))
         return
     
 
