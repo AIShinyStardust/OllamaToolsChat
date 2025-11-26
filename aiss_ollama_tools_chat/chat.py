@@ -11,10 +11,10 @@ import importlib.util
 import sys
 import json
 
-from aiss_ollama_chat.chat import Chat as BaseChat
+from aiss_ollama_chat.chat import Chat
 from aiss_ollama_chat.fileIO import FileIO
 
-class Chat(BaseChat):
+class ToolsChat(Chat):
 
     @staticmethod
     def strMsg(eventType:str, content:str) -> dict[str, str]:
@@ -182,8 +182,8 @@ class Chat(BaseChat):
 
     def doChat(self, prompt:str, extraMsg:str=None):
         if extraMsg:
-            self.chatHistory.append(Chat.strMsg("user", extraMsg))
-        self.chatHistory.append(Chat.strMsg("user", prompt))
+            self.chatHistory.append(ToolsChat.strMsg("user", extraMsg))
+        self.chatHistory.append(ToolsChat.strMsg("user", prompt))
         messages = [{"role": "system", "content": self.sysPrompt}] + self.chatHistory[-self.maxChatLength:]
         while True:
             response = self.client.chat.completions.create(model=self.model, messages=messages, tools=self.tools, stream=False)

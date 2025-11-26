@@ -3,7 +3,7 @@ import sys
 import argparse
 import time
 
-from aiss_ollama_tools_chat.chat import Chat
+from aiss_ollama_tools_chat.chat import ToolsChat
 
 FORCE_EXIT:int = 3
 
@@ -45,7 +45,7 @@ def main():
     
     args = parser.parse_args()
     
-    chat = Chat(args.model, args.sysPrompt, args.maxLength, args.userName, args.prevContext, args.addDateTimeToPrompt,
+    chat = ToolsChat(args.model, args.sysPrompt, args.maxLength, args.userName, args.prevContext, args.addDateTimeToPrompt,
                 args.rawToolsFunctions, args.rawToolsDefinitions, args.serverAddress, args.serverPassword)
     while True:
         global FORCE_EXIT
