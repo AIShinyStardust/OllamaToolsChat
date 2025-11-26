@@ -5,7 +5,8 @@ setup(
     version="0.2.0",
     packages=find_packages(),
     install_requires=[
-        "ollama"
+        "ollama",
+        "ollama-chat"
     ],
     entry_points={
         "console_scripts": [

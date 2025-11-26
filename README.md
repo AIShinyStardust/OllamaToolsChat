@@ -13,15 +13,7 @@ The project allows creating a chat with MCP endpoint tools enabled.
 - Support for multiple Ollama models
 - OpenAPI server support. (tested with FastMCP)
 - Raw tools support. (currently, adding new raw tools requires to edit source code)
-- Exit commands (`quit` or `exit`)
-  - When used, the app makes a backup at "./logs/date_time" located at run path.
-- Save and restore commands (`save`, `save:`, `restore`, `restore:`, `rewind` and `rewind:`)
-  - `save` - Stores a conversational context file named "context.json" at run path.
-  - `save:` - Stores a conversational context file at path inidicated next, related to run path.
-  - `restore` - Restores a conversational context file at "context.json" located at run path.
-  - `restore:` - Restores a conversational context file at path inidicated next, related to run path.
-  - `rewind` - Goes back to a previous turn.
-  - `rewind:` - Goes back an ammount of turns indicated next.
+- Adds every command functionality from Ollama-Chat
      
 ## 🛠 Requirements
 

@@ -1,0 +1,2 @@
+ollama
+git+https://github.com/AIShinyStardust/OllamaChat.git
